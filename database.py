@@ -1,5 +1,8 @@
 import sqlite3
 import xml.etree.ElementTree as ET
+import pathlib as Path
+
+DB_ROOT = Path.Path(__file__).resolve().parent
 
 class Database:
     def __init__(self, db_name):
@@ -57,27 +60,29 @@ def get_steps():
            f.write(f"{record['date']},{record['steps']}\n")
 
 def commands():
-    conn = sqlite3.connect("health_data.db")
+    dbName = DB_ROOT / 'health_data.db'
+    conn = sqlite3.connect(dbName)
     cursor = conn.cursor()
 
-    cursor.execute("SELECT date, steps FROM steps ORDER BY steps DESC LIMIT 100")
+    cursor.execute("SELECT ROW_NUMBER() OVER (ORDER BY steps DESC) AS number, date, steps FROM steps ORDER BY steps DESC LIMIT 100")
     rows = cursor.fetchall()
     conn.close()
 
     print("Top 100 days with the most steps:")
     for row in rows:
-        print(f"Date: {row[0]}, Steps: {row[1]}")
+        print(f"Rank: {row[0]}, Date: {row[1]}, Steps: {row[2]}")
 
 def main():
-    db = Database("health_data.db")
+    dbName = DB_ROOT / 'health_data.db'
+    db = Database(dbName)
     db.create_table("steps", {"date": "TEXT PRIMARY KEY", "steps": "INTEGER"})
     
     with open("data.csv", "r") as f:
         for line in f:
             date, steps = line.strip().split(",")
             db.insert_data("steps", (date, int(steps)))
-    
+ 
     db.close()
-        
+ 
 if __name__ == "__main__":
     commands()
